@@ -1,6 +1,7 @@
 package safe
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -22,4 +23,19 @@ func InvokeWithErr(f func() error) (err error) {
 	}()
 	err = f()
 	return
+}
+
+func InvokeWithLog(logger Logger, f func()) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("%v", rec)
+			logger.Error(context.Background(), err)
+		}
+	}()
+	f()
+	return
+}
+
+type Logger interface {
+	Error(ctx context.Context, args ...interface{})
 }
