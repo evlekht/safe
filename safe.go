@@ -5,14 +5,11 @@ import (
 	"fmt"
 )
 
-func Invoke(f func()) (err error) {
+func Invoke(f func()) {
 	defer func() {
-		if rec := recover(); rec != nil {
-			err = fmt.Errorf("%v", rec)
-		}
+		recover()
 	}()
 	f()
-	return
 }
 
 func InvokeWithErr(f func() error) (err error) {
@@ -21,21 +18,65 @@ func InvokeWithErr(f func() error) (err error) {
 			err = fmt.Errorf("%v", rec)
 		}
 	}()
-	err = f()
-	return
+	return f()
 }
 
-func InvokeWithLog(logger Logger, f func()) (err error) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			err = fmt.Errorf("%v", rec)
-			logger.Error(context.Background(), err)
-		}
-	}()
-	f()
-	return
+//
+//
+
+type LoggerWithContext interface {
+	Error(ctx context.Context, args ...interface{})
 }
 
 type Logger interface {
-	Error(ctx context.Context, args ...interface{})
+	Error(args ...interface{})
+}
+
+func InvokeWithLogContext(ctx context.Context, logger LoggerWithContext, f func()) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			logger.Error(ctx, fmt.Errorf("%v", rec))
+		}
+	}()
+	f()
+}
+
+func InvokeWithLog(logger Logger, f func()) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			logger.Error(fmt.Errorf("%v", rec))
+		}
+	}()
+	f()
+}
+
+//
+//
+
+func InvokeWithErrLogContext(ctx context.Context, logger LoggerWithContext, f func() error) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("%v", rec)
+			logger.Error(ctx, err)
+		}
+	}()
+	err = f()
+	if err != nil {
+		logger.Error(ctx, err)
+	}
+	return err
+}
+
+func InvokeWithErrLog(logger Logger, f func() error) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("%v", rec)
+			logger.Error(err)
+		}
+	}()
+	err = f()
+	if err != nil {
+		logger.Error(err)
+	}
+	return err
 }
